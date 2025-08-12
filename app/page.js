@@ -1,43 +1,37 @@
-import Link from "next/link";
 import ButtonSignin from "@/components/ButtonSignin";
 
 export default function Page() {
   return (
     <>
-      <header className="p-4 flex justify-end max-w-7xl mx-auto">
-        <ButtonSignin text="Login" />
+      <header className="p-4 flex justify-between items-center max-w-7xl mx-auto">
+        <div className="flex items-center gap-2">
+          <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
+            <span className="text-white font-bold text-sm">T</span>
+          </div>
+          <span className="font-bold text-xl">TeachAI</span>
+        </div>
+        <ButtonSignin text="Get Started" />
       </header>
       <main>
-        <section className="flex flex-col items-center justify-center text-center gap-12 px-8 py-24">
-          <h1 className="text-3xl font-extrabold">Ship Fast ⚡️</h1>
-
-          <p className="text-lg opacity-80">
-            The start of your new startup... What are you gonna build?
-          </p>
-
-          <a
-            className="btn btn-primary"
-            href="https://shipfa.st/docs"
-            target="_blank"
-          >
-            Documentation & tutorials{" "}
-            <svg
-              xmlns="http://www.w3.org/2000/svg"
-              viewBox="0 0 20 20"
-              fill="currentColor"
-              className="w-5 h-5"
-            >
-              <path
-                fillRule="evenodd"
-                d="M5 10a.75.75 0 01.75-.75h6.638L10.23 7.29a.75.75 0 111.04-1.08l3.5 3.25a.75.75 0 010 1.08l-3.5 3.25a.75.75 0 11-1.04-1.08l2.158-1.96H5.75A.75.75 0 015 10z"
-                clipRule="evenodd"
-              />
-            </svg>
-          </a>
-
-          <Link href="/blog" className="link link-hover text-sm">
-            Fancy a blog?
-          </Link>
+        <section className="flex flex-col items-center justify-center text-center gap-8 px-8 py-24 min-h-[60vh]">
+          <div className="max-w-4xl mx-auto">
+            <h1 className="text-4xl md:text-6xl font-extrabold text-gray-900 mb-6">
+              TeachAI
+            </h1>
+            
+            <p className="text-xl md:text-2xl text-gray-600 mb-8">
+              This app helps teachers teach with AI
+            </p>
+            
+            <div className="flex flex-col sm:flex-row gap-4 justify-center">
+              <a href="/lesson-builder" className="btn btn-primary btn-lg px-8">
+                Start Creating Lesson Plans
+              </a>
+              <button className="btn btn-outline btn-lg px-8">
+                Learn More
+              </button>
+            </div>
+          </div>
         </section>
       </main>
     </>
