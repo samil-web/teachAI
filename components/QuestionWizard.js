@@ -122,7 +122,7 @@ export default function QuestionWizard({ onComplete }) {
   const allQuestions = showOptional ? [...REQUIRED_QUESTIONS, ...OPTIONAL_QUESTIONS] : REQUIRED_QUESTIONS;
   const currentQuestion = allQuestions[currentStep];
   const isLastStep = currentStep === allQuestions.length - 1;
-  const isLastRequired = currentStep === REQUIRED_QUESTIONS.length - 1;
+  const isLastRequired = currentStep === REQUIRED_QUESTIONS.length;
 
   const handleAnswerChange = (value) => {
     setAnswers(prev => ({
@@ -160,6 +160,9 @@ export default function QuestionWizard({ onComplete }) {
   const handleGenerate = async () => {
     setIsGenerating(true);
     try {
+      // Debug: Log what we're sending
+      console.log('Sending answers:', answers);
+      
       // Call the API to generate lesson plan
       const response = await fetch('/api/generate-lesson', {
         method: 'POST',
@@ -170,7 +173,9 @@ export default function QuestionWizard({ onComplete }) {
       });
 
       if (!response.ok) {
-        throw new Error('Failed to generate lesson plan');
+        const errorData = await response.json();
+        console.error('API Error:', errorData);
+        throw new Error(errorData.error || 'Failed to generate lesson plan');
       }
 
       const lessonPlan = await response.json();
@@ -178,6 +183,7 @@ export default function QuestionWizard({ onComplete }) {
     } catch (error) {
       console.error('Error generating lesson plan:', error);
       // Handle error - show error message to user
+      alert(`Error: ${error.message}`);
     } finally {
       setIsGenerating(false);
     }

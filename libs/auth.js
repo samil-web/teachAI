@@ -3,7 +3,7 @@ import { MongoDBAdapter } from "@auth/mongodb-adapter"
 import GoogleProvider from "next-auth/providers/google"
 import EmailProvider from "next-auth/providers/email"
 import config from "@/config"
-import connectMongo from "./mongo"
+// import connectMongo from "./mongo"
 
 export const { handlers, auth, signIn, signOut } = NextAuth({
   
@@ -14,8 +14,10 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
   providers: [
     // Follow the "Login with Email" tutorial to set up your email server
     // Requires a MongoDB database. Set MONGODB_URI env variable.
-    ...(connectMongo
-      ? [
+    ...(
+      // connectMongo
+      // ? 
+      [
           EmailProvider({
             server: {
               host: "smtp.resend.com",
@@ -42,13 +44,14 @@ export const { handlers, auth, signIn, signOut } = NextAuth({
             },
           }),
         ]
-      : []),
+      // : []
+    ),
   ],
   
   // New users will be saved in Database (MongoDB Atlas). Each user (model) has some fields like name, email, image, etc..
   // Requires a MongoDB database. Set MONGODB_URI env variable.
   // Learn more about the model type: https://authjs.dev/concepts/database-models
-  ...(connectMongo && { adapter: MongoDBAdapter(connectMongo) }),
+  // ...(connectMongo && { adapter: MongoDBAdapter(connectMongo) }),
 
   callbacks: {
     session: async ({ session, token }) => {

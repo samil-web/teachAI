@@ -1,17 +1,24 @@
 import { NextResponse } from 'next/server';
-import { GoogleGenerativeAI } from '@google/generative-ai';
+import Anthropic from '@anthropic-ai/sdk';
 
-// Initialize Gemini AI
-const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
+// Initialize Claude AI
+const anthropic = new Anthropic({
+  apiKey: process.env.CLAUDE_API_KEY,
+});
 
 export async function POST(request) {
+  let answers;
   try {
-    const answers = await request.json();
+    answers = await request.json();
+    
+    // Debug: Log the received data
+    console.log('Received answers:', answers);
     
     // Validate required fields
     const requiredFields = ['subject', 'grade', 'duration', 'objective', 'assessment'];
     for (const field of requiredFields) {
       if (!answers[field]) {
+        console.log(`Missing field: ${field}, value:`, answers[field]);
         return NextResponse.json(
           { error: `Missing required field: ${field}` },
           { status: 400 }
@@ -19,16 +26,22 @@ export async function POST(request) {
       }
     }
 
-    // Build the prompt for Gemini
+    // Build the prompt for Claude
     const prompt = buildLessonPlanPrompt(answers);
     
-    // Get the generative model
-    const model = genAI.getGenerativeModel({ model: "gemini-pro" });
+    // Generate content using Claude
+    const message = await anthropic.messages.create({
+      model: "claude-3-5-sonnet-20241022",
+      max_tokens: 4000,
+      messages: [
+        {
+          role: "user",
+          content: prompt
+        }
+      ]
+    });
     
-    // Generate content
-    const result = await model.generateContent(prompt);
-    const response = await result.response;
-    const text = response.text();
+    const text = message.content[0].text;
     
     // Parse the response into structured data
     const lessonPlan = parseLessonPlan(text, answers);
@@ -43,7 +56,7 @@ export async function POST(request) {
     console.error('Error generating lesson plan:', error);
     
     // Return a fallback lesson plan structure
-    const fallbackPlan = createFallbackLessonPlan(answers);
+    const fallbackPlan = createFallbackLessonPlan(answers || {});
     
     return NextResponse.json({ 
       success: false,
@@ -188,7 +201,7 @@ Students will be evaluated using ${assessment} to measure understanding of ${obj
 - Offer extension activities for advanced students
 - Use multiple modalities to accommodate different learning styles
 
-*Note: This is a template lesson plan. For a more detailed, AI-generated plan, please ensure your Gemini API is properly configured.*`,
+*Note: This is a template lesson plan. For a more detailed, AI-generated plan, please ensure your Claude API is properly configured.*`,
     metadata: {
       createdAt: new Date().toISOString(),
       inputs: answers,
