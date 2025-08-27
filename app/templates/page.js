@@ -9,6 +9,7 @@ export default function TemplatesPage() {
   const [currentStep, setCurrentStep] = useState('select'); // 'select', 'form', 'result'
   const [selectedTemplate, setSelectedTemplate] = useState(null);
   const [generatedLesson, setGeneratedLesson] = useState(null);
+  const [loading, setLoading] = useState(false);
 
   const handleTemplateSelect = (template) => {
     setSelectedTemplate(template);
@@ -20,29 +21,58 @@ export default function TemplatesPage() {
     setCurrentStep('select');
   };
 
-  const handleLessonGenerate = async (templateData) => {
+  // Function to generate lesson from template (simplified for client-side demo)
+  async function generateLessonFromTemplate(template, formData) {
     try {
       const response = await fetch('/api/generate-template-lesson', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
-        body: JSON.stringify(templateData),
+        body: JSON.stringify({ template, formData }),
       });
-
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || 'Failed to generate lesson plan');
+        const errorText = await response.text();
+        throw new Error(`API Error: ${response.status} - ${errorText}`);
       }
-
-      const result = await response.json();
-      setGeneratedLesson(result.lessonPlan);
-      setCurrentStep('result');
+      const data = await response.json();
+      console.log('API response data:', data);
+      return data.lessonPlan; // Return the lessonPlan object from the API response
     } catch (error) {
       console.error('Error generating lesson:', error);
-      alert(`Error: ${error.message}`);
+      throw error;
     }
-  };
+  }
+
+  // Handle form submission and generate lesson from template
+  function handleSubmitForm(formData) {
+    setLoading(true);
+    console.log('Submitting form with template:', selectedTemplate);
+    if (!selectedTemplate) {
+      console.error('No template selected');
+      alert('Error: No template selected. Please go back and select a template.');
+      setLoading(false);
+      return;
+    }
+    generateLessonFromTemplate(selectedTemplate, formData)
+      .then(generatedLessonData => {
+        console.log('Lesson generated successfully:', generatedLessonData);
+        if (!generatedLessonData) {
+          console.error('Generated lesson is undefined or null');
+          alert('Error: Lesson generation failed. Please try again.');
+          setLoading(false);
+          return;
+        }
+        setGeneratedLesson(generatedLessonData);
+        setCurrentStep('result');
+        setLoading(false);
+      })
+      .catch(error => {
+        console.error('Error generating lesson:', error);
+        alert('Error generating lesson. Please try again.');
+        setLoading(false);
+      });
+  }
 
   const handleStartOver = () => {
     setSelectedTemplate(null);
@@ -96,44 +126,50 @@ export default function TemplatesPage() {
         {currentStep === 'form' && selectedTemplate && (
           <TemplateForm 
             template={selectedTemplate}
-            onGenerate={handleLessonGenerate}
+            onGenerate={handleSubmitForm}
             onBack={handleBackToTemplates}
           />
         )}
 
-        {currentStep === 'result' && generatedLesson && (
+        {currentStep === 'result' && (
           <div className="max-w-6xl mx-auto px-8">
-            <div className="flex justify-between items-center mb-8">
+            {generatedLesson ? (
               <div>
-                <h1 className="text-3xl font-bold text-gray-900 mb-2">
-                  {generatedLesson.title}
-                </h1>
-                <div className="flex items-center gap-4 text-sm text-gray-600">
-                  <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">
-                    {generatedLesson.template}
-                  </span>
-                  <span>Grade {generatedLesson.grade}</span>
-                  <span>{generatedLesson.duration} minutes</span>
-                  <span>{generatedLesson.category}</span>
+                <div className="flex justify-between items-center mb-8">
+                  <div>
+                    <h1 className="text-3xl font-bold text-gray-900 mb-2">
+                      {generatedLesson.title}
+                    </h1>
+                    <div className="flex items-center gap-4 text-sm text-gray-600">
+                      <span className="px-2 py-1 bg-blue-100 text-blue-800 rounded">
+                        {generatedLesson.template}
+                      </span>
+                      <span>Grade {generatedLesson.grade}</span>
+                      <span>{generatedLesson.duration} minutes</span>
+                      <span>{generatedLesson.category}</span>
+                    </div>
+                  </div>
+                  <div className="flex gap-2">
+                    <button
+                      onClick={handleEditTemplate}
+                      className="btn btn-outline"
+                    >
+                      Edit Template
+                    </button>
+                    <button
+                      onClick={handleStartOver}
+                      className="btn btn-primary"
+                    >
+                      New Template
+                    </button>
+                  </div>
                 </div>
-              </div>
-              <div className="flex gap-2">
-                <button
-                  onClick={handleEditTemplate}
-                  className="btn btn-outline"
-                >
-                  Edit Template
-                </button>
-                <button
-                  onClick={handleStartOver}
-                  className="btn btn-primary"
-                >
-                  New Template
-                </button>
-              </div>
-            </div>
 
-            <LessonDisplay lessonPlan={generatedLesson} />
+                <LessonDisplay lesson={generatedLesson} />
+              </div>
+            ) : (
+              <div className="text-center py-10">Error: Lesson data is not available. Please go back and regenerate the lesson.</div>
+            )}
           </div>
         )}
       </div>

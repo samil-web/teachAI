@@ -7,26 +7,34 @@ const anthropic = new Anthropic({
 });
 
 export async function POST(request) {
-  let requestData;
   try {
+    console.log('Received request to generate template lesson');
+    let requestData;
     requestData = await request.json();
     const { template, formData } = requestData;
+    console.log('Request payload:', { template, formData });
     
     // Debug: Log the received data
     console.log('Received template data:', { templateId: template.id, formData });
     
     // Validate required data
     if (!template || !formData) {
+      console.error('Missing template or formData in request');
       return NextResponse.json(
         { error: 'Missing template or form data' },
         { status: 400 }
       );
     }
 
-    // Build the template-specific prompt
-    const prompt = buildTemplatePrompt(template, formData);
-    
-    // Generate content using Claude
+    // Check for API key
+    if (!process.env.CLAUDE_API_KEY) {
+      console.error('CLAUDE_API_KEY is not set in environment');
+      return NextResponse.json({ error: 'Server configuration error: API key is not set' }, { status: 500 });
+    }
+
+    // Build detailed prompt for Claude using the template and form data
+    const prompt = buildPrompt(template, formData);
+    console.log('Sending request to Claude API');
     const message = await anthropic.messages.create({
       model: "claude-3-5-sonnet-20241022",
       max_tokens: 4000,
@@ -37,12 +45,13 @@ export async function POST(request) {
         }
       ]
     });
-    
+    console.log('Received response from Claude API');
     const generatedContent = message.content[0].text;
+    console.log('AI content length:', generatedContent.length);
     
     // Process the template with form data and AI content
     const processedLessonPlan = processTemplate(template, formData, generatedContent);
-    
+    console.log(processedLessonPlan);
     return NextResponse.json({ 
       success: true, 
       lessonPlan: processedLessonPlan,
@@ -54,7 +63,7 @@ export async function POST(request) {
     
     // Return a fallback lesson plan structure
     const fallbackPlan = createTemplateFallback(requestData?.template, requestData?.formData || {});
-    
+    console.log('Returning fallback lesson:', fallbackPlan);
     return NextResponse.json({ 
       success: false,
       error: 'Failed to generate lesson plan with AI. Providing template instead.',
@@ -64,37 +73,81 @@ export async function POST(request) {
   }
 }
 
-function buildTemplatePrompt(template, formData) {
-  // Extract form data for easy access
-  const fields = { ...formData };
-  
-  return `You are an expert education consultant creating a lesson plan using the "${template.name}" template. 
+function buildPrompt(template, formData) {
+  // Create a description of the template structure and placeholders
+  let templateDescription = `The lesson template is titled '${template.name}' in the category '${template.category}'. `;
+  templateDescription += `It is designed for grade ${formData.grade} with a duration of ${formData.duration} minutes. `;
+  templateDescription += `The template has the following required fields: ${Object.entries(formData).map(([key, value]) => `${key} (${value || 'not provided'})`).join(', ')}. `;
+  if (Object.keys(template.optionalFields || {}).length > 0) {
+    templateDescription += `The optional fields are: ${Object.entries(template.optionalFields || {}).map(([key, info]) => `${key} (${info.label}: ${formData[key] || 'not provided'})`).join(', ')}. `;
+  }
+  templateDescription += `The template content structure is as follows:\n${template.template}\n`;
 
-TEMPLATE CONTEXT:
-- Template Type: ${template.name}
-- Category: ${template.category}
-- Grade Level: ${fields.grade}
-- Duration: ${fields.duration} minutes
+  // Construct detailed instructions for Claude
+  const instructions = `You are an expert educational content creator with 20 years of experience in curriculum design. Your task is to create a comprehensive, engaging, and grade-appropriate lesson plan based on the provided template and user inputs. Follow these steps:
 
-FORM DATA PROVIDED:
-${Object.entries(fields).map(([key, value]) => `- ${key}: ${value || 'Not provided'}`).join('\n')}
+  1. **Understand the Template**: Review the template structure, placeholders (e.g., {{variable}}), and AI-generated sections (e.g., [AI_GENERATED_INTRO]). Placeholders should be replaced with relevant content based on user inputs. AI-generated sections should be fully developed with detailed, creative, and pedagogically sound content.
+  2. **Incorporate User Inputs**: Seamlessly integrate all provided form data (required and optional fields) into the lesson content to personalize it for the specific class and subject.
+  3. **Create Dual Plans**: Generate TWO aligned lesson plans:
+     - **Student Plan**: A simplified, engaging guide for students with 3-5 clear, actionable steps per section. Use a friendly, encouraging tone tailored to the grade level. Include interactive elements like discussions, quick challenges, or group tasks with visual cues (e.g., **Discuss**, **Create**). Each step should have a time estimate if relevant.
+     - **Teacher Plan**: A detailed roadmap for the teacher with a summary of objectives, materials, and duration at the start. Match steps to the student plan but add facilitation guidance, differentiation tips, classroom management advice, and contingency plans. Ensure step numbers align with the student plan for synchronization.
+  4. **Ensure Alignment**: Both plans must correspond by step numbers (e.g., Student Step 1 aligns with Teacher Step 1) to keep the teacher in sync with student activities.
+  5. **Maintain Structure**: Follow the template’s structure for headers and sections. Clearly label the two plans as 'Student Plan' and 'Teacher Plan' in the output.
+  6. **Grade-Appropriate Content**: Ensure language, complexity, and activities are suitable for grade ${formData.grade}.
+  7. **Engagement and Interaction**: Prioritize active learning with specific prompts for student-teacher and peer interaction in both plans, tailored to the audience.
 
-INSTRUCTIONS:
-You must provide a COMPLETE lesson plan that fills in ALL placeholders and AI sections. Return the lesson plan in this EXACT format:
+  Output the complete content with both plans fully detailed. Do not leave any placeholder unfilled or section incomplete. Separate the plans with clear headings like '=== Student Plan ===' and '=== Teacher Plan ===' for easy parsing.`;
 
-1. First, provide the complete lesson plan with all {{placeholders}} replaced and all [AI_GENERATED_...] sections filled with detailed content
-2. Make sure EVERY placeholder gets actual content - no empty {{}} should remain
-3. Replace ALL [AI_GENERATED_...] sections with specific, detailed content
-4. Ensure all content is age-appropriate for Grade ${fields.grade}
-5. Make activities fit within the ${fields.duration}-minute timeframe
+  const prompt = `${instructions}
 
-TEMPLATE TO FILL:
-${template.template}
+Template Details:
+${templateDescription}
 
-SPECIFIC REQUIREMENTS FOR ${template.category.toUpperCase()}:
-${getSubjectSpecificGuidelines(template.category, fields)}
+Now, create the dual lesson plans based on this template and data.`;
+  console.log('Generated prompt for Claude:', prompt);
+  return prompt;
+}
 
-Return the complete, filled lesson plan with NO placeholders or [AI_GENERATED_...] sections remaining. Every section should have actual, usable content.`;
+function processTemplate(template, formData, aiContent) {
+  // Since Claude is instructed to fill all placeholders and generate complete content,
+  // we can use the AI content directly as the lesson plan content.
+  // However, we'll split it into student and teacher plans if formatted correctly.
+  let studentContent = '';
+  let teacherContent = '';
+
+  const studentMarker = '=== Student Plan ===';
+  const teacherMarker = '=== Teacher Plan ===';
+  const studentIndex = aiContent.indexOf(studentMarker);
+  const teacherIndex = aiContent.indexOf(teacherMarker);
+
+  if (studentIndex !== -1 && teacherIndex !== -1) {
+    if (studentIndex < teacherIndex) {
+      studentContent = aiContent.slice(studentIndex + studentMarker.length, teacherIndex).trim();
+      teacherContent = aiContent.slice(teacherIndex + teacherMarker.length).trim();
+    } else {
+      teacherContent = aiContent.slice(teacherIndex + teacherMarker.length, studentIndex).trim();
+      studentContent = aiContent.slice(studentIndex + studentMarker.length).trim();
+    }
+  } else {
+    // Fallback: If markers aren't found, use the entire content as teacher plan and note student plan as placeholder
+    teacherContent = aiContent;
+    studentContent = '**Student Plan Placeholder**: Due to formatting issues, the student-specific plan could not be extracted. Please refer to the teacher plan for full details or regenerate the lesson.';
+  }
+
+  return {
+    title: template.title ? `${template.title} - Grade ${formData.grade || 'N/A'}` : `Lesson Plan - Grade ${formData.grade || 'N/A'}`,
+    category: template.category || 'Uncategorized',
+    grade: formData.grade || 'N/A',
+    duration: formData.duration || 'N/A',
+    studentContent: studentContent || 'No student content generated.',
+    teacherContent: teacherContent || 'No teacher content generated.',
+    metadata: {
+      createdAt: new Date().toISOString(),
+      templateId: template.id || 'unknown',
+      formData: formData || {},
+      aiGenerated: true
+    }
+  };
 }
 
 function getSubjectSpecificGuidelines(category, fields) {
@@ -133,71 +186,6 @@ function getSubjectSpecificGuidelines(category, fields) {
 - Provide differentiation for diverse learners
 - Connect to students' prior knowledge and experiences`;
   }
-}
-
-function processTemplate(template, formData, aiContent) {
-  // Since we're asking Claude to return a complete lesson plan with all placeholders filled,
-  // we can use the AI content directly as it should already be processed
-  return {
-    title: `${formData.experiment_title || formData.math_topic || formData.literary_work || formData.project_title || template.name} - Grade ${formData.grade}`,
-    template: template.name,
-    category: template.category,
-    grade: formData.grade,
-    duration: formData.duration,
-    content: aiContent, // Use AI content directly since it should be complete
-    metadata: {
-      createdAt: new Date().toISOString(),
-      templateId: template.id,
-      formData: formData,
-      aiGenerated: true
-    }
-  };
-}
-
-function extractAISections(aiContent) {
-  // Parse AI-generated content to extract different sections
-  // This is a simplified version - you might want more sophisticated parsing
-  const sections = {};
-  
-  // Split content by common section headers and map to template placeholders
-  const lines = aiContent.split('\n');
-  let currentSection = 'GENERAL';
-  let currentContent = [];
-  
-  lines.forEach(line => {
-    if (line.startsWith('##') || line.startsWith('#')) {
-      // Save previous section
-      if (currentContent.length > 0) {
-        sections[currentSection] = currentContent.join('\n').trim();
-      }
-      
-      // Start new section
-      const header = line.replace(/^#+\s*/, '').toLowerCase();
-      if (header.includes('objective')) currentSection = 'OBJECTIVES';
-      else if (header.includes('hook') || header.includes('opening')) currentSection = 'HOOK';
-      else if (header.includes('procedure') || header.includes('activity')) currentSection = 'STEP_BY_STEP_PROCEDURE';
-      else if (header.includes('assessment') || header.includes('rubric')) currentSection = 'ASSESSMENT_RUBRIC';
-      else if (header.includes('differentiation')) currentSection = 'DIFFERENTIATION_STRATEGIES';
-      else if (header.includes('homework') || header.includes('extension')) currentSection = 'HOMEWORK_SUGGESTIONS';
-      else currentSection = 'GENERAL';
-      
-      currentContent = [];
-    } else if (line.trim()) {
-      currentContent.push(line);
-    }
-  });
-  
-  // Save final section
-  if (currentContent.length > 0) {
-    sections[currentSection] = currentContent.join('\n').trim();
-  }
-  
-  // Ensure we have content for common sections
-  if (!sections.OBJECTIVES) sections.OBJECTIVES = 'Students will demonstrate understanding of the lesson content through active participation and assessment.';
-  if (!sections.HOOK) sections.HOOK = 'Begin with an engaging question or activity to capture student interest.';
-  if (!sections.ASSESSMENT_RUBRIC) sections.ASSESSMENT_RUBRIC = 'Assess student understanding through observation, questioning, and completion of activities.';
-  
-  return sections;
 }
 
 function createTemplateFallback(template, formData) {
