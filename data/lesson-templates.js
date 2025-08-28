@@ -1,4 +1,127 @@
 export const LESSON_TEMPLATES = {
+  // English Concept & Test Generator Template
+  english_concept_test: {
+    id: 'english_concept_test',
+    name: 'English Concept & Test Generator',
+    description: 'Teach English concepts with short explanations and generate tests from examples',
+    category: 'English/Language Arts',
+    duration: [30, 45, 60],
+    grades: ['6', '7', '8', '9', '10', '11', '12'],
+    requiredFields: [
+      {
+        id: 'concept_name',
+        label: 'English Concept',
+        type: 'text',
+        placeholder: 'e.g., Metaphors, Past Tense, Thesis Statements, Irony'
+      },
+      {
+        id: 'learning_objectives',
+        label: 'Learning Objectives',
+        type: 'textarea',
+        placeholder: 'Students will be able to...'
+      }
+    ],
+    optionalFields: [
+      {
+        id: 'student_interests',
+        label: 'Student Interests/Context',
+        type: 'text',
+        placeholder: 'e.g., sports, social media, current events, music'
+      },
+      {
+        id: 'difficulty_level',
+        label: 'Question Difficulty Level',
+        type: 'select',
+        options: [
+          { value: 'basic', label: 'Basic - Simple recognition and recall' },
+          { value: 'intermediate', label: 'Intermediate - Application and analysis' },
+          { value: 'advanced', label: 'Advanced - Synthesis and evaluation' },
+          { value: 'mixed', label: 'Mixed - Combination of all levels' }
+        ]
+      },
+      {
+        id: 'question_count',
+        label: 'Number of Questions',
+        type: 'select',
+        options: [
+          { value: '5', label: '5 questions' },
+          { value: '8', label: '8 questions' },
+          { value: '10', label: '10 questions' },
+          { value: '12', label: '12 questions' },
+          { value: '15', label: '15 questions' }
+        ]
+      },
+      {
+        id: 'question_types',
+        label: 'Question Format Distribution',
+        type: 'select',
+        options: [
+          { value: 'multiple_choice_only', label: 'Multiple Choice Only' },
+          { value: 'short_answer_only', label: 'Short Answer Only' },
+          { value: 'mixed_balanced', label: 'Mixed - Balanced (50/50)' },
+          { value: 'mostly_mc', label: 'Mostly Multiple Choice (70/30)' },
+          { value: 'mostly_sa', label: 'Mostly Short Answer (70/30)' },
+          { value: 'custom', label: 'Custom Distribution' }
+        ]
+      },
+      {
+        id: 'example_question',
+        label: 'Example Question (Your Style)',
+        type: 'textarea',
+        placeholder: 'Provide an example of the type of question you want AI to generate. This will guide the AI to match your style and complexity level.'
+      },
+      {
+        id: 'question_complexity_notes',
+        label: 'Complexity Requirements',
+        type: 'textarea',
+        placeholder: 'Describe the level of thinking you want students to demonstrate (e.g., "Students should identify AND explain", "Include real-world applications", "Require text evidence")'
+      },
+      {
+        id: 'custom_question_distribution',
+        label: 'Custom Question Distribution (if selected above)',
+        type: 'text',
+        placeholder: 'e.g., "6 multiple choice, 4 short answer, 2 essay questions"'
+      }
+    ],
+    template: `# {{concept_name}} - Concept & Assessment - Grade {{grade}}
+
+## Learning Objectives
+{{learning_objectives}}
+
+## Concept Introduction (10 minutes)
+### What is {{concept_name}}?
+[AI_GENERATE: short_concept_explanation]
+
+### Key Examples (Progressive Difficulty)
+[AI_GENERATE: progressive_examples]
+
+### Quick Comprehension Check
+[AI_GENERATE: immediate_comprehension_check]
+
+## Practice & Application (20 minutes)
+### Guided Examples
+[AI_GENERATE: guided_practice_examples]
+
+### Student Practice Exercises
+[AI_GENERATE: practice_exercises]
+
+## Assessment (15 minutes)
+### Formative Assessment (During Lesson)
+[AI_GENERATE: formative_assessment]
+
+### Test Questions (From Examples)
+[AI_GENERATE: example_based_test]
+
+### Answer Key & Rubric
+[AI_GENERATE: assessment_rubric]
+
+## Extension Activities
+[AI_GENERATE: advanced_applications]
+
+## Teacher Notes
+[AI_GENERATE: teaching_tips]`
+  },
+
   // Science Lab Template
   science_lab: {
     id: 'science_lab',

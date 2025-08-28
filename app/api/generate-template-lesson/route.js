@@ -83,20 +83,66 @@ function buildPrompt(template, formData) {
   }
   templateDescription += `The template content structure is as follows:\n${template.template}\n`;
 
-  // Construct detailed instructions for Claude
-  const instructions = `You are an expert educational content creator with 20 years of experience in curriculum design. Your task is to create a comprehensive, engaging, and grade-appropriate lesson plan based on the provided template and user inputs. Follow these steps:
+  // Construct detailed instructions for Claude - Enhanced for English Language Testing with Custom Assessment
+  const instructions = `You are an expert English language educator with 20 years of experience in curriculum design and assessment creation. Your task is to create a comprehensive, engaging lesson plan with customized testing components based on the provided template and user inputs.
 
-  1. **Understand the Template**: Review the template structure, placeholders (e.g., {{variable}}), and AI-generated sections (e.g., [AI_GENERATED_INTRO]). Placeholders should be replaced with relevant content based on user inputs. AI-generated sections should be fully developed with detailed, creative, and pedagogically sound content.
-  2. **Incorporate User Inputs**: Seamlessly integrate all provided form data (required and optional fields) into the lesson content to personalize it for the specific class and subject.
-  3. **Create Dual Plans**: Generate TWO aligned lesson plans:
-     - **Student Plan**: A simplified, engaging guide for students with 3-5 clear, actionable steps per section. Use a friendly, encouraging tone tailored to the grade level. Include interactive elements like discussions, quick challenges, or group tasks with visual cues (e.g., **Discuss**, **Create**). Each step should have a time estimate if relevant.
-     - **Teacher Plan**: A detailed roadmap for the teacher with a summary of objectives, materials, and duration at the start. Match steps to the student plan but add facilitation guidance, differentiation tips, classroom management advice, and contingency plans. Ensure step numbers align with the student plan for synchronization.
-  4. **Ensure Alignment**: Both plans must correspond by step numbers (e.g., Student Step 1 aligns with Teacher Step 1) to keep the teacher in sync with student activities.
-  5. **Maintain Structure**: Follow the template’s structure for headers and sections. Clearly label the two plans as 'Student Plan' and 'Teacher Plan' in the output.
-  6. **Grade-Appropriate Content**: Ensure language, complexity, and activities are suitable for grade ${formData.grade}.
-  7. **Engagement and Interaction**: Prioritize active learning with specific prompts for student-teacher and peer interaction in both plans, tailored to the audience.
+  **SPECIAL FOCUS FOR ENGLISH LANGUAGE LESSONS:**
+  - **Concept Explanations**: Provide clear, concise explanations (1-2 sentences max) for each language concept
+  - **Example-Based Learning**: Use concrete examples to illustrate abstract concepts
+  - **Customized Test Generation**: Create assessments matching teacher's specific requirements
+  - **Progressive Difficulty**: Start with simple examples, build to complex applications
 
-  Output the complete content with both plans fully detailed. Do not leave any placeholder unfilled or section incomplete. Separate the plans with clear headings like '=== Student Plan ===' and '=== Teacher Plan ===' for easy parsing.`;
+  **ASSESSMENT CUSTOMIZATION REQUIREMENTS:**
+  ${formData.question_count ? `- Generate exactly ${formData.question_count} questions` : '- Generate 8-10 questions (default)'}
+  ${formData.difficulty_level ? `- Question difficulty: ${formData.difficulty_level}` : '- Use mixed difficulty levels'}
+  ${formData.question_types ? `- Question format: ${formData.question_types}` : '- Use mixed question formats'}
+  ${formData.example_question ? `- Follow this example style: "${formData.example_question}"` : '- Use standard academic question format'}
+  ${formData.question_complexity_notes ? `- Complexity requirements: ${formData.question_complexity_notes}` : '- Standard complexity for grade level'}
+  ${formData.custom_question_distribution ? `- Question distribution: ${formData.custom_question_distribution}` : '- Balanced distribution'}
+
+  Follow these steps:
+
+  1. **Understand the Template**: Review the template structure, placeholders (e.g., {{variable}}), and AI-generated sections. Replace placeholders with relevant English language content based on user inputs.
+
+  2. **Create Concept Explanations**: For each language concept, provide:
+     - **Short Definition** (1 sentence maximum)
+     - **Clear Example** (relevant to student age/interests: ${formData.student_interests || 'general topics'})
+     - **Quick Check** (immediate comprehension question)
+
+  3. **Generate Dual Plans with Custom Testing Integration**:
+     - **Student Plan**: 
+       * Concept explanations in simple language
+       * 3-5 examples per concept with increasing difficulty
+       * Practice exercises that mirror the custom test questions
+       * Self-assessment checkpoints
+     - **Teacher Plan**: 
+       * Detailed concept background and common misconceptions
+       * Example selection rationale and differentiation notes
+       * Custom assessment rubrics and detailed answer keys
+       * Extension activities for advanced learners
+
+  4. **Custom Test Creation from Examples**: 
+     - Generate exactly ${formData.question_count || '8-10'} questions
+     - Follow the specified format distribution: ${formData.question_types || 'mixed format'}
+     - Match the complexity level: ${formData.difficulty_level || 'grade-appropriate'}
+     - Use the provided example question as a style guide: ${formData.example_question ? `"${formData.example_question}"` : 'standard format'}
+     - Transform instructional examples into test questions following these specifications
+     - Provide detailed answer keys with explanations
+     - Include rubric for grading (especially for short answer/essay questions)
+
+  5. **English Language Specifics**:
+     - Grammar: Use sentence patterns students recognize
+     - Vocabulary: Context clues and word families  
+     - Reading: Comprehension strategies with text evidence
+     - Writing: Model-practice-apply sequence
+     - Speaking/Listening: Interactive dialogue examples
+
+  6. **Assessment Alignment**: Ensure every concept taught has corresponding test questions using the same examples or similar patterns, following the teacher's customization requirements.
+
+  **QUESTION FORMAT GUIDELINES:**
+  ${getQuestionFormatGuidelines(formData.question_types, formData.difficulty_level)}
+
+  Output format: Separate with '=== Student Plan ===' and '=== Teacher Plan ===' headings. Include the customized assessment section with exactly ${formData.question_count || '8-10'} questions in the specified format.`;
 
   const prompt = `${instructions}
 
@@ -108,10 +154,97 @@ Now, create the dual lesson plans based on this template and data.`;
   return prompt;
 }
 
+function getQuestionFormatGuidelines(questionTypes, difficultyLevel) {
+  let guidelines = '';
+  
+  switch (questionTypes) {
+    case 'multiple_choice_only':
+      guidelines = `
+- All questions must be multiple choice with 4 options (A, B, C, D)
+- Include one clearly correct answer and three plausible distractors
+- Avoid "all of the above" or "none of the above" options
+- Make distractors based on common student misconceptions`;
+      break;
+      
+    case 'short_answer_only':
+      guidelines = `
+- All questions require written responses (1-3 sentences)
+- Questions should ask for explanations, examples, or analysis
+- Provide clear rubric criteria for grading
+- Include sample acceptable answers`;
+      break;
+      
+    case 'mixed_balanced':
+      guidelines = `
+- 50% multiple choice questions (4 options each)
+- 50% short answer questions (1-3 sentences)
+- Alternate between formats throughout the assessment
+- Ensure both formats test the same concepts`;
+      break;
+      
+    case 'mostly_mc':
+      guidelines = `
+- 70% multiple choice questions (4 options each)
+- 30% short answer questions (1-2 sentences)
+- Use MC for knowledge/comprehension, SA for analysis/application`;
+      break;
+      
+    case 'mostly_sa':
+      guidelines = `
+- 70% short answer questions (1-3 sentences)
+- 30% multiple choice questions (4 options each)
+- Focus SA questions on deeper thinking and explanation`;
+      break;
+      
+    case 'custom':
+      guidelines = `
+- Follow the custom distribution specified by the teacher
+- Maintain quality standards for each question type
+- Ensure balanced coverage of the concept`;
+      break;
+      
+    default:
+      guidelines = `
+- Mix of multiple choice and short answer questions
+- Ensure variety in question formats and cognitive levels`;
+  }
+  
+  // Add difficulty-specific guidelines
+  switch (difficultyLevel) {
+    case 'basic':
+      guidelines += `
+- Focus on recognition, recall, and simple identification
+- Use straightforward language and familiar examples
+- Test basic understanding of the concept`;
+      break;
+      
+    case 'intermediate':
+      guidelines += `
+- Include application and analysis questions
+- Require students to explain reasoning or provide examples
+- Test understanding and ability to use the concept`;
+      break;
+      
+    case 'advanced':
+      guidelines += `
+- Focus on synthesis, evaluation, and critical thinking
+- Require complex reasoning and connections between ideas
+- Test deep understanding and creative application`;
+      break;
+      
+    case 'mixed':
+      guidelines += `
+- Include questions at all cognitive levels (basic, intermediate, advanced)
+- Progress from simple recall to complex application
+- Ensure appropriate distribution across difficulty levels`;
+      break;
+  }
+  
+  return guidelines;
+}
+
 function processTemplate(template, formData, aiContent) {
-  // Since Claude is instructed to fill all placeholders and generate complete content,
-  // we can use the AI content directly as the lesson plan content.
-  // However, we'll split it into student and teacher plans if formatted correctly.
+  // Enhanced processing for English language lessons with embedded assessments
   let studentContent = '';
   let teacherContent = '';
 
@@ -129,25 +262,82 @@ function processTemplate(template, formData, aiContent) {
       studentContent = aiContent.slice(studentIndex + studentMarker.length).trim();
     }
   } else {
-    // Fallback: If markers aren't found, use the entire content as teacher plan and note student plan as placeholder
-    teacherContent = aiContent;
-    studentContent = '**Student Plan Placeholder**: Due to formatting issues, the student-specific plan could not be extracted. Please refer to the teacher plan for full details or regenerate the lesson.';
+    // For English concept lessons, try to extract key sections even without markers
+    if (template.id === 'english_concept_test') {
+      // Extract concept explanations and test questions
+      const conceptMatch = aiContent.match(/### What is.*?\n(.*?)(?=###|##|\n\n)/s);
+      const examplesMatch = aiContent.match(/### Key Examples.*?\n(.*?)(?=###|##|\n\n)/s);
+      const testMatch = aiContent.match(/### Test Questions.*?\n(.*?)(?=###|##|$)/s);
+      
+      studentContent = `# ${formData.concept_name || 'English Concept'} - Student Guide
+
+## Concept Definition
+${conceptMatch ? conceptMatch[1].trim() : 'Concept explanation not found.'}
+
+## Examples to Study
+${examplesMatch ? examplesMatch[1].trim() : 'Examples not found.'}
+
+## Practice Questions
+${testMatch ? testMatch[1].trim() : 'Test questions not found.'}`;
+
+      teacherContent = aiContent; // Full content for teacher
+    } else {
+      // Fallback for other templates
+      teacherContent = aiContent;
+      studentContent = '**Student Plan**: Please refer to the teacher plan for lesson details.';
+    }
+  }
+
+  // Extract assessment components for English lessons with custom specifications
+  let assessmentData = {};
+  if (template.id === 'english_concept_test') {
+    const testQuestions = extractTestQuestions(aiContent);
+    const conceptExplanation = extractConceptExplanation(aiContent);
+    
+    assessmentData = {
+      conceptExplanation,
+      testQuestions,
+      hasEmbeddedAssessment: true,
+      customSpecifications: {
+        questionCount: formData.question_count || '8-10',
+        difficultyLevel: formData.difficulty_level || 'mixed',
+        questionTypes: formData.question_types || 'mixed_balanced',
+        exampleQuestion: formData.example_question || null,
+        complexityNotes: formData.question_complexity_notes || null,
+        customDistribution: formData.custom_question_distribution || null
+      }
+    };
   }
 
   return {
-    title: template.title ? `${template.title} - Grade ${formData.grade || 'N/A'}` : `Lesson Plan - Grade ${formData.grade || 'N/A'}`,
+    title: template.name ? `${template.name} - ${formData.concept_name || formData.grammar_concept || 'Lesson'} - Grade ${formData.grade || 'N/A'}` : `Lesson Plan - Grade ${formData.grade || 'N/A'}`,
     category: template.category || 'Uncategorized',
     grade: formData.grade || 'N/A',
     duration: formData.duration || 'N/A',
     studentContent: studentContent || 'No student content generated.',
     teacherContent: teacherContent || 'No teacher content generated.',
+    assessment: assessmentData,
     metadata: {
       createdAt: new Date().toISOString(),
       templateId: template.id || 'unknown',
       formData: formData || {},
-      aiGenerated: true
+      aiGenerated: true,
+      isEnglishLesson: template.category === 'English/Language Arts'
     }
   };
+}
+
+function extractTestQuestions(content) {
+  const testMatches = content.match(/(?:Test Questions?|Assessment|Quiz).*?\n(.*?)(?=###|##|Extension|$)/s);
+  if (testMatches) {
+    return testMatches[1].trim().split('\n').filter(line => line.trim().length > 0);
+  }
+  return [];
+}
+
+function extractConceptExplanation(content) {
+  const conceptMatch = content.match(/(?:What is|Definition|Concept).*?\n(.*?)(?=###|##|\n\n)/s);
+  return conceptMatch ? conceptMatch[1].trim() : '';
 }
 
 function getSubjectSpecificGuidelines(category, fields) {
