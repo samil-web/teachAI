@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import QuestionWizard from "@/components/QuestionWizard";
-import LessonPlanDisplay from "@/components/LessonPlanDisplay";
+import PaginatedLessonDisplay from "@/components/PaginatedLessonDisplay";
 
 export default function LessonBuilderPage() {
   const [currentStep, setCurrentStep] = useState('wizard'); // 'wizard', 'display'
@@ -64,7 +64,7 @@ export default function LessonBuilderPage() {
         )}
 
         {currentStep === 'display' && lessonPlan && (
-          <LessonPlanDisplay 
+          <PaginatedLessonDisplay 
             lessonPlan={lessonPlan}
             onBack={handleBackToWizard}
             onEdit={handleEditLesson}

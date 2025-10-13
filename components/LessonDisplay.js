@@ -5,6 +5,8 @@ import { DocumentDuplicateIcon, PrinterIcon, ShareIcon } from "@heroicons/react/
 
 export default function LessonDisplay({ lesson }) {
   const [activeTab, setActiveTab] = useState('teacher');
+  const [testData, setTestData] = useState(null);
+  const [generatingTest, setGeneratingTest] = useState(false);
 
   // Function to format markdown-like content to HTML
   const formatContent = (content) => {
@@ -94,6 +96,35 @@ export default function LessonDisplay({ lesson }) {
     });
   };
 
+  // Function to generate test based on lesson content
+  const generateTest = async () => {
+    setGeneratingTest(true);
+    try {
+      const response = await fetch('/api/generate-test', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          lessonContent: lesson.studentContent || lesson.teacherContent,
+          testSpecifications: {
+            questionCount: 10,
+            questionTypes: 'mixed_balanced',
+            difficultyLevel: 'intermediate',
+            conceptName: lesson.title
+          }
+        })
+      });
+      
+      const result = await response.json();
+      if (result.success) {
+        setTestData(result.test);
+      }
+    } catch (error) {
+      console.error('Failed to generate test:', error);
+    } finally {
+      setGeneratingTest(false);
+    }
+  };
+
   // Function to copy content to clipboard
   const copyToClipboard = () => {
     const content = activeTab === 'teacher' ? lesson.teacherContent || '' : lesson.studentContent || '';
@@ -102,32 +133,28 @@ export default function LessonDisplay({ lesson }) {
   };
 
   // Function to print content
-  const printContent = () => {
-    const content = activeTab === 'teacher' ? lesson.teacherContent || '' : lesson.studentContent || '';
+  const handlePrint = () => {
     const printWindow = window.open('', '_blank');
     printWindow.document.write(`
       <html>
         <head>
-          <title>Print Lesson Plan</title>
+          <title>${lesson.title || 'Lesson Plan'}</title>
           <style>
-            body { font-family: Arial, sans-serif; }
-            h1 { font-size: 24px; }
-            h2 { font-size: 20px; }
-            h3 { font-size: 16px; }
-            p { margin: 8px 0; }
-            ul, ol { margin-left: 20px; }
+            body { font-family: Arial, sans-serif; margin: 20px; }
+            h1, h2, h3 { color: #333; }
+            .content { margin-bottom: 20px; }
           </style>
         </head>
         <body>
-          <h1>${lesson.title || 'Lesson Plan'} - ${activeTab === 'teacher' ? 'Teacher Plan' : 'Student Plan'}</h1>
-          ${content.split('\n').map(line => {
-            if (line.startsWith('# ')) return `<h1>${line.slice(2)}</h1>`;
-            if (line.startsWith('## ')) return `<h2>${line.slice(3)}</h2>`;
-            if (line.startsWith('### ')) return `<h3>${line.slice(4)}</h3>`;
-            if (line.startsWith('- ') || line.startsWith('* ')) return `<li>${line.slice(2)}</li>`;
-            if (line.match(/^\d+\. /)) return `<li>${line.replace(/^\d+\. /, '')}</li>`;
-            return `<p>${line}</p>`;
-          }).join('')}
+          <h1>${lesson.title || 'Lesson Plan'}</h1>
+          <div class="content">
+            <h2>Teacher Plan</h2>
+            ${formatContentForPrint(lesson.teacherContent)}
+          </div>
+          <div class="content">
+            <h2>Student Plan</h2>
+            ${formatContentForPrint(lesson.studentContent)}
+          </div>
         </body>
       </html>
     `);
@@ -182,9 +209,16 @@ export default function LessonDisplay({ lesson }) {
           <DocumentDuplicateIcon className="h-5 w-5" />
           Copy
         </button>
-        <button onClick={printContent} className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors">
+        <button onClick={handlePrint} className="flex items-center gap-2 px-4 py-2 bg-blue-50 text-blue-700 rounded-md hover:bg-blue-100 transition-colors">
           <PrinterIcon className="h-5 w-5" />
           Print
+        </button>
+        <button 
+          onClick={generateTest}
+          disabled={generatingTest}
+          className="flex items-center gap-2 px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+        >
+          {generatingTest ? 'Generating Test...' : 'Generate Test'}
         </button>
         {/* Placeholder for Share functionality */}
         <button className="flex items-center gap-2 px-4 py-2 bg-gray-200 text-gray-700 rounded-md hover:bg-gray-300 transition-colors opacity-50" disabled>
@@ -192,6 +226,47 @@ export default function LessonDisplay({ lesson }) {
           Share
         </button>
       </div>
+
+      {/* Test Display Section */}
+      {testData && (
+        <div className="mt-8 p-6 border-2 border-green-200 rounded-lg bg-green-50">
+          <h3 className="text-2xl font-bold mb-4 text-green-800">{testData.title}</h3>
+          
+          {/* Test Questions */}
+          <div className="mb-6">
+            <h4 className="text-lg font-semibold mb-3 text-gray-700">Test Questions</h4>
+            <div className="bg-white p-4 rounded border whitespace-pre-line text-sm">
+              {testData.rawQuestions}
+            </div>
+          </div>
+
+          {/* Answer Key - Collapsible */}
+          <details className="mb-4">
+            <summary className="cursor-pointer font-semibold text-lg text-gray-700 hover:text-gray-900">
+              Answer Key & Explanations
+            </summary>
+            <div className="mt-3 bg-white p-4 rounded border whitespace-pre-line text-sm">
+              {testData.answerKey}
+            </div>
+          </details>
+
+          {/* Grading Rubric - Collapsible */}
+          <details>
+            <summary className="cursor-pointer font-semibold text-lg text-gray-700 hover:text-gray-900">
+              Grading Rubric
+            </summary>
+            <div className="mt-3 bg-white p-4 rounded border whitespace-pre-line text-sm">
+              {testData.rubric}
+            </div>
+          </details>
+
+          {/* Test Metadata */}
+          <div className="mt-4 text-xs text-gray-600">
+            <p><strong>Questions:</strong> {testData.metadata?.questionCount || 'N/A'}</p>
+            <p><strong>Generated:</strong> {testData.metadata?.createdAt ? new Date(testData.metadata.createdAt).toLocaleString() : 'N/A'}</p>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

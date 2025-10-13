@@ -9,7 +9,8 @@ const REQUIRED_QUESTIONS = [
     title: "What subject will you be teaching?",
     type: "text",
     placeholder: "e.g., Mathematics, Science, History, English",
-    required: true
+    required: true,
+    defaultValue: "Mathematics"
   },
   {
     id: "grade",
@@ -28,7 +29,8 @@ const REQUIRED_QUESTIONS = [
       { value: "10", label: "Grade 10" },
       { value: "11", label: "Grade 11" }
     ],
-    required: true
+    required: true,
+    defaultValue: "5"
   },
   {
     id: "duration",
@@ -41,14 +43,16 @@ const REQUIRED_QUESTIONS = [
       { value: "90", label: "1.5 hours" },
       { value: "120", label: "2 hours" }
     ],
-    required: true
+    required: true,
+    defaultValue: "45"
   },
   {
     id: "objective",
     title: "What should students learn by the end of this lesson?",
     type: "textarea",
     placeholder: "Describe the main learning objective or goal...",
-    required: true
+    required: true,
+    defaultValue: "Students will understand and apply basic mathematical concepts through interactive problem-solving activities."
   },
   {
     id: "assessment",
@@ -62,7 +66,8 @@ const REQUIRED_QUESTIONS = [
       { value: "worksheet", label: "Worksheet or Handout" },
       { value: "observation", label: "Teacher Observation" }
     ],
-    required: true
+    required: true,
+    defaultValue: "discussion"
   }
 ];
 
@@ -115,7 +120,16 @@ const OPTIONAL_QUESTIONS = [
 
 export default function QuestionWizard({ onComplete }) {
   const [currentStep, setCurrentStep] = useState(0);
-  const [answers, setAnswers] = useState({});
+  const [answers, setAnswers] = useState(() => {
+    // Initialize with default values for required questions
+    const defaultAnswers = {};
+    REQUIRED_QUESTIONS.forEach(question => {
+      if (question.defaultValue) {
+        defaultAnswers[question.id] = question.defaultValue;
+      }
+    });
+    return defaultAnswers;
+  });
   const [showOptional, setShowOptional] = useState(false);
   const [isGenerating, setIsGenerating] = useState(false);
 
